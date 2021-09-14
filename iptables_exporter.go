@@ -87,7 +87,6 @@ func (c *collector) Collect(metricChan chan<- prometheus.Metric) {
 
 	duration := time.Since(start)
 	metricChan <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds())
-	metricChan <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, 1)
 
 	for _, command := range commands {
 		tables, err := iptables.GetTables(command)
@@ -140,6 +139,7 @@ func (c *collector) Collect(metricChan chan<- prometheus.Metric) {
 			}
 		}
 	}
+	metricChan <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, 1)
 }
 
 func main() {
