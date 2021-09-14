@@ -16,8 +16,10 @@ package main
 
 import (
 	"net/http"
+	"strings"
 	"time"
 
+	"github.com/google/shlex"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/prometheus/common/log"
@@ -70,6 +72,8 @@ var (
 		[]string{"command", "table", "chain", "rule"},
 		nil,
 	)
+
+	commands [2]string
 )
 
 func (c *collector) Describe(descChan chan<- *prometheus.Desc) {
@@ -82,17 +86,21 @@ func (c *collector) Describe(descChan chan<- *prometheus.Desc) {
 }
 
 func (c *collector) Collect(metricChan chan<- prometheus.Metric) {
-	commands := []string{"iptables-save", "ip6tables-save"}
 	start := time.Now()
 
 	duration := time.Since(start)
 	metricChan <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds())
 
 	for _, command := range commands {
-		tables, err := iptables.GetTables(command)
+		_command, _ := shlex.Split(command + " -c")
+		command = strings.Trim(_command[0], " \t\r\n")
+		if len(command) < 1 {
+			continue
+		}
+		tables, err := iptables.GetTables(command, _command[1:]...)
 		if err != nil {
 			metricChan <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, 0)
-			log.Error(err)
+			log.Error(err, _command)
 			return
 		}
 
@@ -158,6 +166,18 @@ func main() {
 		).Default(
 			"/metrics",
 		).String()
+		iptablesCommand = kingpin.Flag(
+			"iptables.command",
+			"Command to run instead of iptables-save. (empty to skip)",
+		).Default(
+			"iptables-save",
+		).String()
+		ip6tablesCommand = kingpin.Flag(
+			"ip6tables.command",
+			"Command to run instead of ip6tables-save. (empty to skip)",
+		).Default(
+			"ip6tables-save",
+		).String()
 	)
 
 	log.AddFlags(kingpin.CommandLine)
@@ -170,6 +190,15 @@ func main() {
 
 	var c collector
 	prometheus.MustRegister(&c)
+	commands[0] = *iptablesCommand
+	commands[1] = *ip6tablesCommand
+	if len(commands[0]) < 1 {
+		commands[0] = "''"
+	}
+	if len(commands[1]) < 1 {
+		commands[1] = "''"
+	}
+	log.Infoln("Commands: ", commands)
 
 	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {

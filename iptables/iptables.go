@@ -16,8 +16,8 @@ package iptables
 
 import "os/exec"
 
-func GetTables(command string) (Tables, error) {
-	cmd := exec.Command(command, "-c")
+func GetTables(command string, arg ...string) (Tables, error) {
+	cmd := exec.Command(command, arg...)
 	pipe, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, err
