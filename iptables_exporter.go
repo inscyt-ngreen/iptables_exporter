@@ -16,6 +16,7 @@ package main
 
 import (
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -166,6 +167,12 @@ func main() {
 		).Default(
 			"/metrics",
 		).String()
+		goCollector = kingpin.Flag(
+			"metrics.go-stats",
+			"Display go process stats. (Default false)",
+		).Default(
+			"false",
+		).Bool()
 		iptablesCommand = kingpin.Flag(
 			"iptables.command",
 			"Command to run instead of 'iptables-save -c'. (empty to skip)",
@@ -189,7 +196,13 @@ func main() {
 	log.Infoln("Build context", version.BuildContext())
 
 	var c collector
-	prometheus.MustRegister(&c)
+	r := prometheus.NewRegistry()
+	r.MustRegister(&c)
+	if (*goCollector) {
+		r.MustRegister(prometheus.NewProcessCollector(os.Getpid(), ""))
+		r.MustRegister(prometheus.NewGoCollector())
+	}
+
 	commands[0] = *iptablesCommand
 	commands[1] = *ip6tablesCommand
 	if len(commands[0]) < 1 {
@@ -200,7 +213,7 @@ func main() {
 	}
 	log.Infoln("Commands: ", commands)
 
-	http.Handle(*metricsPath, promhttp.Handler())
+	http.Handle(*metricsPath, promhttp.HandlerFor(r, promhttp.HandlerOpts{}))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`<html>
 			<head><title>iptables exporter</title></head>
