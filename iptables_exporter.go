@@ -92,7 +92,7 @@ func (c *collector) Collect(metricChan chan<- prometheus.Metric) {
 	metricChan <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds())
 
 	for _, command := range commands {
-		_command, _ := shlex.Split(command + " -c")
+		_command, _ := shlex.Split(command)
 		command = strings.Trim(_command[0], " \t\r\n")
 		if len(command) < 1 {
 			continue
@@ -168,15 +168,15 @@ func main() {
 		).String()
 		iptablesCommand = kingpin.Flag(
 			"iptables.command",
-			"Command to run instead of iptables-save. (empty to skip)",
+			"Command to run instead of 'iptables-save -c'. (empty to skip)",
 		).Default(
-			"iptables-save",
+			"iptables-save -c",
 		).String()
 		ip6tablesCommand = kingpin.Flag(
 			"ip6tables.command",
-			"Command to run instead of ip6tables-save. (empty to skip)",
+			"Command to run instead of 'ip6tables-save -c'. (empty to skip)",
 		).Default(
-			"ip6tables-save",
+			"ip6tables-save -c",
 		).String()
 	)
 
