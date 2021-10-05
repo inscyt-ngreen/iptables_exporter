@@ -89,9 +89,6 @@ func (c *collector) Describe(descChan chan<- *prometheus.Desc) {
 func (c *collector) Collect(metricChan chan<- prometheus.Metric) {
 	start := time.Now()
 
-	duration := time.Since(start)
-	metricChan <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds())
-
 	for _, command := range commands {
 		_command, _ := shlex.Split(command)
 		command = strings.Trim(_command[0], " \t\r\n")
@@ -149,6 +146,8 @@ func (c *collector) Collect(metricChan chan<- prometheus.Metric) {
 		}
 	}
 	metricChan <- prometheus.MustNewConstMetric(scrapeSuccessDesc, prometheus.GaugeValue, 1)
+	duration := time.Since(start)
+	metricChan <- prometheus.MustNewConstMetric(scrapeDurationDesc, prometheus.GaugeValue, duration.Seconds())
 }
 
 func main() {
